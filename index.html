@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Puzzle Game - Memory Match</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Memory Match Game</h1>
+        <div class="game-info">
+            <span>Level: <span id="level-display">1</span></span>
+            <span>Attempts: <span id="attempt-counter">0</span></span>
+            <span>Time: <span id="timer">0s</span></span>
+        </div>
+        <div id="game-board" class="game-board"></div>
+        <div class="controls">
+            <button id="reset-button">Reset Game</button>
+            <button id="next-button" style="display: none;">Next Level</button>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
