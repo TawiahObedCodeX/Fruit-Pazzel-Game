@@ -32,8 +32,18 @@ const symbols = [
     '🌯', '🥗', '🥘', '🥙', '🥓', '🍖', '🍗', '🍘', '🍙', '🍚'
 ];
 
+/**
+ * Shuffles array in place.
+ * @param {Array} array items array
+ */
+function shuffle(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+}
+
 let currentLevel = 0;
-let attempts = 0; // attempts per level
 let timeElapsed = 0;
 let timerInterval = null;
 let firstCard = null;
@@ -42,6 +52,141 @@ let lockBoard = false;
 let matchedPairs = 0;
 let totalPairs = 0;
 let peekTimeout = null;
+const MAX_ATTEMPTS_PER_LEVEL = 5;
+let attemptsLeft = 0;
+
+// Sound functions
+function playBeep(frequency, duration = 0.1) {
+    try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        oscillator.frequency.value = frequency;
+        gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0.5, audioCtx.currentTime + 0.01);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+        oscillator.start();
+        oscillator.stop(audioCtx.currentTime + duration);
+    } catch (e) {
+        console.warn('Web Audio API not supported', e);
+    }
+}
+
+// Celebration emoji
+function showCelebration(isCorrect) {
+    // Remove any existing celebration
+    const existing = document.querySelector('.celebration');
+    if (existing) existing.remove();
+
+    const celebration = document.createElement('div');
+    celebration.className = 'celebration';
+    celebration.textContent = isCorrect ? '🎉' : '😢';
+    document.body.appendChild(celebration);
+
+    // Remove after animation ends (assuming 2s)
+    setTimeout(() => {
+        celebration.remove();
+    }, 2000);
+}
+
+// Show all cards as hint when attempts run out
+function showAllCardsHint() {
+    lockBoard = true;
+    const cards = gameBoard.querySelectorAll('.card:not(.matched)');
+    cards.forEach(card => {
+        card.classList.add('flipped');
+    });
+    // Hide after 2 seconds
+    setTimeout(() => {
+        cards.forEach(card => {
+            card.classList.remove('flipped');
+        });
+        lockBoard = false;
+    }, 2000);
+}
+
+// Golden buzzer sound and animation
+function playGoldenBuzzerSound() {
+    try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        // Create a short melody or buzzer sound
+        const oscillator1 = audioCtx.createOscillator();
+        const oscillator2 = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+
+        oscillator1.connect(gainNode);
+        oscillator2.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+
+        // Golden buzzer sound: two tones rising
+        oscillator1.frequency.setValueAtTime(400, audioCtx.currentTime); // G4
+        oscillator1.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.3);
+
+        oscillator2.frequency.setValueAtTime(500, audioCtx.currentTime); // B4
+        oscillator2.frequency.exponentialRampToValueAtTime(1000, audioCtx.currentTime + 0.3);
+
+        gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0.5, audioCtx.currentTime + 0.01);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+
+        oscillator1.start();
+        oscillator2.start();
+        oscillator1.stop(audioCtx.currentTime + 0.4);
+        oscillator2.stop(audioCtx.currentTime + 0.4);
+    } catch (e) {
+        console.warn('Web Audio API not supported for golden buzzer', e);
+    }
+}
+
+function showGoldenBuzzer() {
+    // Remove any existing golden buzzer
+    const existing = document.querySelector('.golden-buzzer');
+    if (existing) existing.remove();
+
+    const buzzer = document.createElement('div');
+    buzzer.className = 'golden-buzzer';
+    buzzer.textContent = '🛎️'; // bell emoji, styled gold via CSS
+    document.body.appendChild(buzzer);
+
+    // Remove after animation ends
+    setTimeout(() => {
+        buzzer.remove();
+    }, 3000); // matches animation duration
+}
+
+// Theme handling
+const STORAGE_KEY = 'fruit-pazzel-theme';
+function getPreferredTheme() {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) return saved;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+function setTheme(theme) {
+    document.body.classList.toggle('dark-mode', theme === 'dark');
+    document.body.classList.toggle('light-mode', theme === 'light');
+    localStorage.setItem(STORAGE_KEY, theme);
+}
+function updateEvenLevelBackground() {
+    const isEven = (currentLevel + 1) % 2 === 0;
+    document.body.classList.toggle('even-level', isEven);
+}
+function initializeTheme() {
+    const theme = getPreferredTheme();
+    setTheme(theme);
+}
+
+// Event listeners for theme toggle
+function addThemeToggleListener() {
+    const toggleBtn = document.getElementById('theme-toggle');
+    if (toggleBtn) {
+        toggleBtn.addEventListener('click', () => {
+            const currentTheme = document.body.classList.contains('dark-mode') ? 'light' : 'dark';
+            setTheme(currentTheme);
+        });
+    }
+}
 
 const levelDisplay = document.getElementById('level-display');
 const attemptCounter = document.getElementById('attempt-counter');
@@ -56,20 +201,24 @@ function initGame() {
     resetGame();
     startTimer();
     createBoard();
+    initializeTheme();
+    addThemeToggleListener();
 }
 
 // Reset game state (for current level)
 function resetGame() {
     clearInterval(timerInterval);
     clearTimeout(peekTimeout);
-    attempts = 0;
+    attemptsLeft = MAX_ATTEMPTS_PER_LEVEL;
     timeElapsed = 0;
     firstCard = null;
     secondCard = null;
     lockBoard = false;
     matchedPairs = 0;
-    attemptCounter.textContent = attempts;
+    attemptCounter.textContent = attemptsLeft;
     timerDisplay.textContent = `${timeElapsed}s`;
+    levelDisplay.textContent = currentLevel + 1;
+    updateEvenLevelBackground();
     gameBoard.innerHTML = '';
     nextButton.style.display = 'none'; // hide next button when starting/resetting level
 }
@@ -122,7 +271,6 @@ function showPeek(seconds) {
     const cards = gameBoard.querySelectorAll('.card');
     cards.forEach(card => {
         card.classList.add('flipped');
-        card.textContent = card.dataset.value;
     });
     // Hide after seconds
     peekTimeout = setTimeout(() => {
@@ -140,7 +288,6 @@ function flipCard() {
     if (this === firstCard) return;
 
     this.classList.add('flipped');
-    this.textContent = this.dataset.value;
 
     if (!firstCard) {
         firstCard = this;
@@ -148,8 +295,6 @@ function flipCard() {
     }
 
     secondCard = this;
-    attempts++;
-    attemptCounter.textContent = attempts;
 
     checkForMatch();
 }
@@ -161,6 +306,11 @@ function checkForMatch() {
     if (isMatch) {
         disableCards();
         matchedPairs++;
+        playBeep(800, 0.2); // correct beep
+        // Show celebration after 2 seconds
+        setTimeout(() => {
+            showCelebration(true);
+        }, 2000);
 
         // Check if level is complete
         if (matchedPairs === totalPairs) {
@@ -168,6 +318,21 @@ function checkForMatch() {
         }
     } else {
         unflipCards();
+        playBeep(200, 0.2); // wrong beep
+        setTimeout(() => {
+            showCelebration(false);
+        }, 2000);
+        attemptsLeft--;
+        attemptCounter.textContent = attemptsLeft;
+        if (attemptsLeft === 0) {
+            // Show all cards as hint
+            showAllCardsHint();
+            // Reset attempts after hint
+            setTimeout(() => {
+                attemptsLeft = MAX_ATTEMPTS_PER_LEVEL;
+                attemptCounter.textContent = attemptsLeft;
+            }, 2000); // after hint duration
+        }
     }
 }
 
@@ -184,8 +349,6 @@ function unflipCards() {
     setTimeout(() => {
         firstCard.classList.remove('flipped');
         secondCard.classList.remove('flipped');
-        firstCard.textContent = '';
-        secondCard.textContent = '';
         resetBoard();
     }, 1000);
 }
@@ -199,6 +362,11 @@ function resetBoard() {
 function completeLevel() {
     clearInterval(timerInterval);
     clearTimeout(peekTimeout);
+    // Golden buzzer for first level completion
+    if (currentLevel === 0) {
+        playGoldenBuzzerSound();
+        showGoldenBuzzer();
+    }
     // Show next button
     nextButton.style.display = 'inline-block';
     // Optionally show a message

@@ -1,3 +1,59 @@
+:root {
+    /* Light mode colors */
+    --bg-light: #f5f5f5;
+    --bg-dark: #121212;
+    --text-light: #222;
+    --text-dark: #fff;
+    --card-bg: #ffebee;
+    --card-flipped-bg: #3498db;
+    --card-flipped-color: #fff;
+    --card-matched-bg: #2ecc71;
+    --card-matched-color: #fff;
+    --game-info-bg: #ecf0f1;
+    --game-info-color: #222;
+    --button-bg: #3498db;
+    --button-hover-bg: #2980b9;
+    --button-color: #fff;
+    --h1-color: #2c3e50;
+    --bg-even-light: #e0e0e0;
+    --bg-even-dark: #1e1e1e;
+}
+
+/* Dark mode overrides */
+body.dark-mode {
+    --bg: var(--bg-dark);
+    --text: var(--text-dark);
+    --card-bg: #2a2a2a;
+    --card-flipped-bg: #1e90ff;
+    --card-matched-bg: #2e8b57;
+    --game-info-bg: #1a1a1a;
+    --game-info-color: #fff;
+    --button-bg: #1e90ff;
+    --button-hover-bg: #1565c0;
+    --button-color: #fff;
+    --h1-color: #fff;
+}
+
+body.light-mode {
+    --bg: var(--bg-light);
+    --text: var(--text-light);
+    --card-bg: var(--card-bg);
+    --card-flipped-bg: var(--card-flipped-bg);
+    --card-matched-bg: var(--card-matched-bg);
+    --game-info-bg: var(--game-info-bg);
+    --button-bg: var(--button-bg);
+    --button-hover-bg: var(--button-hover-bg);
+    --button-color: #000;
+    --h1-color: var(--h1-color);
+}
+
+body.even-level.light-mode {
+    background-color: var(--bg-even-light);
+}
+body.even-level.dark-mode {
+    background-color: var(--bg-even-dark);
+}
+
 * {
     box-sizing: border-box;
     margin: 0;
@@ -6,9 +62,10 @@
 
 body {
     font-family: Arial, sans-serif;
-    background-color: #f5f5f5;
-    color: #333;
+    background-color: var(--bg);
+    color: var(--text);
     line-height: 1.6;
+    transition: background-color 0.3s, color 0.3s;
 }
 
 .container {
@@ -20,17 +77,18 @@ body {
 h1 {
     text-align: center;
     margin-bottom: 1rem;
-    color: #2c3e50;
+    color: var(--h1-color);
 }
 
 .game-info {
     display: flex;
     justify-content: space-around;
-    background: #ecf0f1;
+    background: var(--game-info-bg);
     padding: 0.5rem;
     border-radius: 5px;
     margin-bottom: 1rem;
     font-size: 1.1rem;
+    color: var(--game-info-color);
 }
 
 .game-board {
@@ -39,14 +97,14 @@ h1 {
     margin-bottom: 2rem;
     /* Debug: add border and background to see if board is present */
     border: 2px dashed #999;
-    background-color: #fafafa;
+    background-color: #fafafa; /* keep light for visibility in both modes? maybe adjust */
     min-height: 100px; /* ensure visible even if empty */
 }
 
 .card {
     width: 100%;
     aspect-ratio: 1;
-    background-color: #ffebee; /* Debug: light red to see cards */
+    background-color: var(--card-bg);
     border-radius: 5px;
     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     display: flex;
@@ -56,6 +114,7 @@ h1 {
     cursor: pointer;
     position: relative;
     transition: transform 0.2s;
+    color: var(--text); /* inherit text color for symbol? */
 }
 
 .card:hover {
@@ -64,13 +123,13 @@ h1 {
 
 .card.flipped {
     transform: rotateY(180°);
-    background-color: #3498db;
-    color: white;
+    background-color: var(--card-flipped-bg);
+    color: var(--card-flipped-color);
 }
 
 .card.matched {
-    background-color: #2ecc71;
-    color: white;
+    background-color: var(--card-matched-bg);
+    color: var(--card-matched-color);
     pointer-events: none;
 }
 
@@ -79,10 +138,12 @@ h1 {
     position: absolute;
     font-size: 2rem;
     backface-visibility: hidden;
+    visibility: hidden;
 }
 
 .card.flipped::before {
     transform: rotateY(180°);
+    visibility: visible;
 }
 
 .controls {
@@ -90,23 +151,81 @@ h1 {
 }
 
 button {
-    background-color: #3498db;
-    color: white;
+    background-color: var(--button-bg);
+    color: var(--button-color);
     border: none;
     padding: 0.75rem 1.5rem;
     border-radius: 5px;
     cursor: pointer;
     font-size: 1rem;
-    transition: background-color 0.2s;
+    transition: background-color 0.2s, box-shadow 0.2s;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
 button:hover {
-    background-color: #2980b9;
+    background-color: var(--button-hover-bg);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
 }
 
 @media (max-width: 600px) {
     .game-info {
         flex-direction: column;
         gap: 0.5rem;
+    }
+}
+
+/* Celebration animation */
+.celebration {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 8rem;
+    opacity: 0.9;
+    pointer-events: none;
+    z-index: 1000;
+    animation: celebrationPulse 2s ease-out;
+}
+
+@keyframes celebrationPulse {
+    0% {
+        transform: translate(-50%, -50%) scale(0.1);
+        opacity: 0;
+    }
+    30% {
+        transform: translate(-50%, -50%) scale(1.1);
+        opacity: 0.9;
+    }
+    100% {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 0;
+    }
+}
+
+/* Golden buzzer */
+.golden-buzzer {
+    position: fixed;
+    top: -10%;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 6rem;
+    color: #ffd700; /* golden */
+    pointer-events: none;
+    z-index: 1001;
+    animation: goldenBuzzerFall 3s ease-out forwards;
+}
+
+@keyframes goldenBuzzerFall {
+    0% {
+        top: -10%;
+        opacity: 0;
+    }
+    20% {
+        top: 10%;
+        opacity: 1;
+    }
+    100% {
+        top: 110%;
+        opacity: 0;
     }
 }
